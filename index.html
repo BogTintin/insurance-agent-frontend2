@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>保險業務員 AI 助理（體驗版）</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; margin: 0; background: #f6f7f9; }
+      .container { max-width: 760px; margin: 40px auto; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+      h1 { margin: 0 0 12px; font-size: 20px; }
+      .tip { color: #667085; font-size: 14px; margin-bottom: 12px; }
+      .chat { border: 1px solid #e6e8eb; border-radius: 12px; padding: 12px; background: #fafbfc; height: 480px; overflow-y: auto; white-space: pre-wrap; }
+      .msg { margin: 8px 0; line-height: 1.6; }
+      .user { text-align: right; }
+      .bubble { display: inline-block; padding: 10px 12px; border-radius: 12px; max-width: 80%; }
+      .bubble.user { background: #daf0ff; }
+      .bubble.bot { background: #eef0f3; }
+      .row { display: flex; gap: 8px; margin-top: 12px; }
+      input, button { font-size: 16px; }
+      input { flex: 1; padding: 12px; border: 1px solid #d0d5dd; border-radius: 12px; }
+      button { padding: 12px 16px; border: none; border-radius: 12px; background: #1769ff; color: #fff; cursor: pointer; }
+      button:disabled { opacity: .6; cursor: not-allowed; }
+      .quick { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 8px; }
+      .chip { padding: 6px 10px; border-radius: 999px; background: #eef4ff; color: #1b4dff; font-size: 13px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>鄭勤元 的 AI 保險助理（體驗版）</h1>
+      <div class="tip">提示：輸入問題或點選下方快速範例。回覆格式包含「重點 → 條列 → 下一步」。</div>
+      <div class="quick" id="quick"></div>
+      <div class="chat" id="chat"></div>
+      <div class="row">
+        <input id="inp" placeholder="輸入你的問題，例如：35歲男，年繳3萬，想加強住院醫療…" />
+        <button id="btn">送出</button>
+      </div>
+    </div>
+
+    <script>
+      // ✅ 寫死你的後端 Render API 這裡（要換後端網址，只改這一行）
+      const DEFAULT_API = "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";
+      const API_BASE = DEFAULT_API.replace(/\/$/,'');
+
+      const chatEl = document.getElementById('chat');
+      const inp = document.getElementById('inp');
+      const btn = document.getElementById('btn');
+      const quick = document.getElementById('quick');
+
+      const QUICK_TEMPLATES = [
+        '35 歲男性，年繳 3 萬，重視住院醫療，定期 vs 終身怎麼選？',
+        '想加強癌症保障：一次金 vs 實支實付如何取捨？',
+        '有房貸、家庭主要收入來源，需要多少壽險保額？',
+        '協助我幫客戶做保單健診',
+      ];
+
+      const messages = [];
+
+      function addMsg(role, text) {
+        const wrap = document.createElement('div');
+        wrap.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'bot');
+        bubble.innerText = text;
+        wrap.appendChild(bubble);
+        chatEl.appendChild(wrap);
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
+      async function send() {
+        const q = inp.value.trim();
+        if (!q) return;
+        inp.value = '';
+        btn.disabled = true;
+        addMsg('user', q);
+
+        messages.push({ role: 'user', content: q });
+
+        try {
+          const res = await fetch(`${API_BASE}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: 'demo', messages })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(()=>({detail: res.statusText}));
+            throw new Error(err.detail || 'Server error');
+          }
+          const data = await res.json();
+          const reply = data.reply || '(無回覆)';
+          addMsg('assistant', reply);
+          messages.push({ role: 'assistant', content: reply });
+        } catch (e) {
+          addMsg('assistant', `發生錯誤：${e.message}`);
+        } finally {
+          btn.disabled = false;
+          inp.focus();
+        }
+      }
+
+      btn.addEventListener('click', send);
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+
+      QUICK_TEMPLATES.forEach(t => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.innerText = t;
+        chip.onclick = () => { inp.value = t; inp.focus(); };
+        quick.appendChild(chip);
+      });
+    </script>
+  </body>
+</html>
